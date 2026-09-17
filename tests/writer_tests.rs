@@ -428,3 +428,89 @@ fn mmcif_round_trip_preserves_atoms_of_example_files() {
         assert_same_atoms(&original, &reparsed, name);
     }
 }
+
+/// A CRYST1 line from a crystal structure, with a space group and a Z value.
+const CRYST1_WITH_SPACE_GROUP: &str =
+    "CRYST1   79.637   79.637   79.637 109.47 109.47 109.47 P 1           1";
+
+/// A CRYST1 line as simulation output writes it: a real unit cell, no space
+/// group. This is the common shape for molecular dynamics, where CRYST1 is the
+/// only record carrying the periodic box.
+const CRYST1_NO_SPACE_GROUP: &str =
+    "CRYST1   50.631   50.631   50.631 109.47 109.47 109.47               1";
+
+#[test]
+fn cryst1_records_are_reproduced_exactly() {
+    for line in [CRYST1_WITH_SPACE_GROUP, CRYST1_NO_SPACE_GROUP] {
+        let input = format!("{line}\n{}\n", CANONICAL_ATOM_RECORDS[1]);
+
+        let structure = parse_pdb_string(&input).unwrap();
+        let text = pdb_text(&structure);
+
+        assert_eq!(records(&text, "CRYST1"), vec![line]);
+    }
+}
+
+#[test]
+fn cryst1_is_parsed_into_its_fields() {
+    let structure = parse_pdb_string(CRYST1_WITH_SPACE_GROUP).unwrap();
+
+    let cryst1 = structure.cryst1.expect("CRYST1 was not parsed");
+    assert_eq!(cryst1.a, 79.637);
+    assert_eq!(cryst1.b, 79.637);
+    assert_eq!(cryst1.c, 79.637);
+    assert_eq!(cryst1.alpha, 109.47);
+    assert_eq!(cryst1.beta, 109.47);
+    assert_eq!(cryst1.gamma, 109.47);
+    assert_eq!(cryst1.space_group, "P 1");
+    assert_eq!(cryst1.z, Some(1));
+}
+
+#[test]
+fn a_blank_space_group_stays_blank_rather_than_becoming_a_default() {
+    let structure = parse_pdb_string(CRYST1_NO_SPACE_GROUP).unwrap();
+
+    let cryst1 = structure.cryst1.expect("CRYST1 was not parsed");
+    assert_eq!(cryst1.space_group, "");
+    assert_eq!(cryst1.z, Some(1));
+}
+
+#[test]
+fn a_file_without_cryst1_is_written_without_one() {
+    let structure = parse_pdb_string(CANONICAL_ATOM_RECORDS[1]).unwrap();
+
+    let text = pdb_text(&structure);
+
+    assert!(structure.cryst1.is_none());
+    assert!(records(&text, "CRYST1").is_empty(), "{text}");
+}
+
+#[test]
+fn cryst1_values_that_do_not_fit_the_pdb_format_are_rejected_before_writing() {
+    let base = parse_pdb_string(CRYST1_WITH_SPACE_GROUP).unwrap();
+    let cases: [(&str, fn(&mut PdbStructure)); 3] = [
+        ("cell length wider than 9 columns", |s| {
+            s.cryst1.as_mut().unwrap().a = 1_234_567.0
+        }),
+        ("cell angle wider than 7 columns", |s| {
+            s.cryst1.as_mut().unwrap().alpha = 123_456.0
+        }),
+        ("space group wider than 11 columns", |s| {
+            s.cryst1.as_mut().unwrap().space_group = "P 1 21 1 EXTRA".into()
+        }),
+    ];
+
+    for (case, modify) in cases {
+        let mut structure = base.clone();
+        modify(&mut structure);
+        let mut buffer = Vec::new();
+
+        let result = write_pdb(&structure, &mut buffer);
+
+        assert!(
+            matches!(result, Err(PdbError::InvalidRecord(_))),
+            "{case}: {result:?}"
+        );
+        assert!(buffer.is_empty(), "{case}: output was written");
+    }
+}

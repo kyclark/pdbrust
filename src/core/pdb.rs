@@ -25,7 +25,7 @@
 //! ```
 
 use crate::error::PdbError;
-use crate::records::{Atom, Conect, Model, Remark, SSBond, SeqRes};
+use crate::records::{Atom, Conect, Cryst1, Model, Remark, SSBond, SeqRes};
 use std::path::Path;
 
 /// Main structure representing a PDB file.
@@ -74,6 +74,8 @@ pub struct PdbStructure {
     pub connects: Vec<Conect>,
     /// Disulfide bond information from SSBOND records.
     pub ssbonds: Vec<SSBond>,
+    /// Unit cell and space group from the CRYST1 record, if the file has one.
+    pub cryst1: Option<Cryst1>,
     /// Additional information from REMARK records.
     pub remarks: Vec<Remark>,
     /// List of models in case of multi-model structures.
@@ -103,6 +105,7 @@ impl PdbStructure {
             seqres: Vec::new(),
             connects: Vec::new(),
             ssbonds: Vec::new(),
+            cryst1: None,
             remarks: Vec::new(),
             models: Vec::new(),
             current_model: None,

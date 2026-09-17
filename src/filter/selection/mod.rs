@@ -149,6 +149,7 @@ pub fn execute_selection(structure: &PdbStructure, expr: &SelectionExpr) -> PdbS
         seqres: structure.seqres.clone(),
         connects: Vec::new(), // Connectivity may be invalid after filtering
         ssbonds: structure.ssbonds.clone(),
+        cryst1: structure.cryst1.clone(),
         remarks: structure.remarks.clone(),
         models: Vec::new(),
         current_model: structure.current_model,

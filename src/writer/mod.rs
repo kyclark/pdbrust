@@ -52,6 +52,30 @@ fn check_pdb_representable(structure: &PdbStructure) -> Result<(), PdbError> {
         pdb_number("atom serial number", atom.serial, 5)?;
         pdb_number("residue number", atom.residue_seq, 4)?;
     }
+    if let Some(cryst1) = &structure.cryst1 {
+        check_width("CRYST1 space group", &cryst1.space_group, 11)?;
+        // The cell fields are fixed width. A value too large would widen its
+        // field and shift every column after it, which is the kind of silently
+        // corrupt line this writer refuses to emit.
+        for (what, value, width, decimals) in [
+            ("CRYST1 cell length", cryst1.a, 9, 3),
+            ("CRYST1 cell length", cryst1.b, 9, 3),
+            ("CRYST1 cell length", cryst1.c, 9, 3),
+            ("CRYST1 cell angle", cryst1.alpha, 7, 2),
+            ("CRYST1 cell angle", cryst1.beta, 7, 2),
+            ("CRYST1 cell angle", cryst1.gamma, 7, 2),
+        ] {
+            if format!("{value:.*}", decimals).len() > width {
+                return Err(PdbError::InvalidRecord(format!(
+                    "{what} {value} does not fit the PDB format \
+                     (at most {width} characters); write mmCIF instead"
+                )));
+            }
+        }
+        if let Some(z) = cryst1.z {
+            pdb_number("CRYST1 Z value", z, 4)?;
+        }
+    }
     for seqres in &structure.seqres {
         check_width("SEQRES chain ID", &seqres.chain_id, 1)?;
         for residue in &seqres.residues {
@@ -165,6 +189,27 @@ fn write_pdb_records<W: Write>(structure: &PdbStructure, writer: &mut W) -> Resu
             ssbond.sym1,
             ssbond.sym2,
             ssbond.length
+        )?;
+    }
+
+    // Write CRYST1, which the PDB specification places after SSBOND and before
+    // the coordinates. For a molecular dynamics structure this is the only
+    // record carrying the periodic box, so dropping it loses the unit cell.
+    if let Some(cryst1) = &structure.cryst1 {
+        let z = match cryst1.z {
+            Some(z) => format!("{z:>4}"),
+            None => " ".repeat(4),
+        };
+        writeln!(
+            writer,
+            "CRYST1{:9.3}{:9.3}{:9.3}{:7.2}{:7.2}{:7.2} {:<11}{z}",
+            cryst1.a,
+            cryst1.b,
+            cryst1.c,
+            cryst1.alpha,
+            cryst1.beta,
+            cryst1.gamma,
+            cryst1.space_group,
         )?;
     }
 

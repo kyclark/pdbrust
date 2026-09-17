@@ -1,6 +1,6 @@
 use crate::core::PdbStructure;
 use crate::error::PdbError;
-use crate::records::{Atom, Conect, Model, Remark, SSBond, SeqRes};
+use crate::records::{Atom, Conect, Cryst1, Model, Remark, SSBond, SeqRes};
 use crate::utils::{decode_hybrid36, parse_float, parse_int};
 use std::borrow::Cow;
 use std::fs::File;
@@ -79,6 +79,11 @@ pub fn parse_pdb_reader<R: BufRead>(mut reader: R) -> Result<PdbStructure, PdbEr
             }
             "SSBOND" => {
                 structure.ssbonds.push(parse_ssbond_record(&line)?);
+            }
+            "CRYST1" => {
+                // A PDB file has at most one CRYST1; if a file repeats it, the
+                // last one wins, as it does for HEADER and TITLE.
+                structure.cryst1 = Some(parse_cryst1_record(&line)?);
             }
             "REMARK" => {
                 let remark = parse_remark_record(&line);
@@ -353,6 +358,55 @@ fn parse_conect_record(line: &Line) -> Result<Option<Conect>, PdbError> {
 }
 
 /// Parses an SSBOND record.
+/// Parses a CRYST1 record: the unit cell, and the space group for a crystal
+/// structure.
+///
+/// Columns are 1-based in the PDB specification: a 7-15, b 16-24, c 25-33,
+/// alpha 34-40, beta 41-47, gamma 48-54, space group 56-66, Z 67-70. The space
+/// group and Z are often blank in simulation output, so both are optional; the
+/// six cell values are not.
+fn parse_cryst1_record(line: &Line) -> Result<Cryst1, PdbError> {
+    if line.len() < 54 {
+        return Err(PdbError::InvalidRecord(
+            "CRYST1 record too short".to_string(),
+        ));
+    }
+
+    let cell = |start: usize, end: usize| -> Result<f64, PdbError> {
+        parse_float(&line.col(start, end)).map_err(|_| {
+            PdbError::InvalidRecord(format!(
+                "CRYST1 cell value {:?} is not a number",
+                line.col(start, end).trim()
+            ))
+        })
+    };
+
+    let z = {
+        let field = line.col(66, 70);
+        let field = field.trim();
+        if field.is_empty() {
+            None
+        } else {
+            Some(parse_int(field).map_err(|_| {
+                PdbError::InvalidRecord(format!(
+                    "CRYST1 Z value {field:?} is not an integer"
+                ))
+            })?)
+        }
+    };
+
+    Ok(Cryst1 {
+        a: cell(6, 15)?,
+        b: cell(15, 24)?,
+        c: cell(24, 33)?,
+        alpha: cell(33, 40)?,
+        beta: cell(40, 47)?,
+        gamma: cell(47, 54)?,
+        space_group: line.col(55, 66).trim().to_string(),
+        z,
+    })
+}
+
 fn parse_ssbond_record(line: &Line) -> Result<SSBond, PdbError> {
     if line.len() < 35 {
         // Changed from 70 to 35 to handle shorter SSBOND records

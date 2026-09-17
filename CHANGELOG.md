@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **CRYST1 records are now parsed and written.** `PdbStructure` gains a `cryst1: Option<Cryst1>` field holding the unit cell lengths and angles, the space group, and the Z value. A blank space group or Z stays blank rather than becoming a default, so simulation output round-trips unchanged.
+
+### Fixed
+- **The unit cell is no longer lost when a parsed structure is written back out.** `parse_pdb_file` followed by `write_pdb_file` previously dropped the CRYST1 record and returned `Ok`, with no warning. For a molecular dynamics structure CRYST1 is the only record carrying the periodic box, so the written file could no longer be re-wrapped, measured under the minimum image convention, or used to continue the simulation. Filtering operations (`remove_ligands`, `keep_only_chain`, `select`, and the rest) carry the cell through, since removing atoms does not change the box.
+- **CRYST1 values that do not fit the PDB columns are rejected before writing**, in line with the checks added in 0.7.1 for atoms and SSBOND records, instead of widening a field and shifting every column after it.
+
 ## [0.7.1] - 2026-09-16
 
 A hardening release: it fixes bugs that could crash the parser or silently give wrong results when reading and writing PDB and mmCIF files. The Rust API has no breaking changes. Three changes can affect existing code:

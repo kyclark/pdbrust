@@ -3,6 +3,7 @@
 mod atom;
 mod chain;
 mod conect;
+mod cryst1;
 mod model;
 mod remark;
 mod residue;
@@ -13,6 +14,7 @@ mod ssbond;
 pub use atom::Atom;
 pub use chain::Chain;
 pub use conect::Conect;
+pub use cryst1::Cryst1;
 pub use model::Model;
 pub use remark::Remark;
 pub use residue::Residue;

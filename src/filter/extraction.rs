@@ -95,6 +95,7 @@ impl PdbStructure {
             seqres: self.seqres.clone(),
             connects: Vec::new(), // Connectivity may be invalid after filtering
             ssbonds: self.ssbonds.clone(),
+            cryst1: self.cryst1.clone(),
             remarks: self.remarks.clone(),
             models: Vec::new(), // Models need special handling
             current_model: self.current_model,
@@ -154,6 +155,7 @@ impl PdbStructure {
             seqres: filtered_seqres,
             connects: Vec::new(), // Rebuild if needed
             ssbonds: filtered_ssbonds,
+            cryst1: self.cryst1.clone(),
             remarks: self.remarks.clone(),
             models: Vec::new(),
             current_model: self.current_model,
@@ -195,6 +197,7 @@ impl PdbStructure {
             seqres: self.seqres.clone(),
             connects: Vec::new(),
             ssbonds: self.ssbonds.clone(),
+            cryst1: self.cryst1.clone(),
             remarks: self.remarks.clone(),
             models: Vec::new(),
             current_model: self.current_model,
@@ -225,6 +228,7 @@ impl PdbStructure {
             seqres: self.seqres.clone(),
             connects: Vec::new(),
             ssbonds: self.ssbonds.clone(),
+            cryst1: self.cryst1.clone(),
             remarks: self.remarks.clone(),
             models: Vec::new(),
             current_model: self.current_model,
@@ -254,6 +258,7 @@ impl PdbStructure {
             seqres: self.seqres.clone(),
             connects: Vec::new(),
             ssbonds: self.ssbonds.clone(),
+            cryst1: self.cryst1.clone(),
             remarks: self.remarks.clone(),
             models: Vec::new(),
             current_model: self.current_model,
@@ -302,6 +307,7 @@ impl PdbStructure {
             seqres: self.seqres.clone(),
             connects: Vec::new(),
             ssbonds: self.ssbonds.clone(),
+            cryst1: self.cryst1.clone(),
             remarks: self.remarks.clone(),
             models: Vec::new(),
             current_model: self.current_model,
